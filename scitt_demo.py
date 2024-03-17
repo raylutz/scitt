@@ -10,8 +10,9 @@ import pprint
 import sys
 sys.path.append('..')
 
-from Pydf.Pydf.md_demo import md_code_seg, pr 
-from Pydf.Pydf import Pydf as daf
+from daffodil.daf import Daf
+Pydf = Daf
+from daffodil.lib.md_demo import md_code_seg, pr 
 
 import base64
 import cbor2  # CBOR library
@@ -68,7 +69,31 @@ The Election Manangement System (EMS) runs in an air-gapped network. The EMS als
     For purposes of simulation, we will generate a random key pair that is not anchored further to any trust anchor, such as a
     certificate authority (CA) and likely using X.509.
     
-In these first few sections, we will define a few convenience functions for:
+## Outline of the process:
+
+1. Prior to the election, the Election Management System (EMS) will configure and test individual 
+voter-facing scanners, and other scanners in the central scannign facility (for mail ballots). 
+As part of this process, USB thumbdrives (or other removeable media) will be used (within a secure facility) to:
+    - Send the voting machine the public key of the EMS and signed nonce which will demonstrate possession of the corresponding private key.
+    - Request from the voting machine its public key.
+    - Voting machine scanner will respone with unique ID, public key, and will sign the nonce.
+    - Voting machine may also provide other evidence of operating configuration including proof of firmware version.
+    - In this initial interaction, symmetric encryption keys may be exchanged.
+
+2. The EMS system will collect and post all the public keys of all voting machine scanners in a public key manifest. 
+The hash of this manifest may be submitted to a SCITT transparency server to document who, what, when. Moving the data
+from the air-gapped facility to post will use the TransGapProtocol, which essentially creates a secure channel in USB
+drives.
+
+3. During the election, the voting system scanner will
+    - preferrably use a Trusted Platform Module (TPM) and Trusted Execution Environment (TEE) to maintain a trusted system configuration
+    - as each ballot is scanned, the image created will be hashed and then the hash signed using the private key corresponding with the published public key.
+    - The images must be shuffled to randomize the order so it is infeasible to link a voter to their ballot.
+    - The signed hash will be provided in a related file, perhaps formatted as COSE block.
+
+4. After the election, a hash manifest of all files can be created using any tool, such as QuickHash or any sha256sum type of utility. This has manifest can be submitted to a SCITT transparancy service.
+
+5. Auditing tools can check the integrity of all files, and can also check that each image was created by the scanner and signed using the private key which corresponds to the public key previously posted.In these first few sections, we will define a few convenience functions for:
 * Converting to/from base64 encoding
 * Generate random public/private key pair.
 * Generate a random nonce of specified length
@@ -350,10 +375,10 @@ The request of the scanner's public key will include the public key of the
     """
     
    
-    public_key_manifest_daf         = daf.Pydf()
-    public_key_manifest_disp_daf    = daf.Pydf()
-    server_internal_info_daf        = daf.Pydf()
-    server_internal_info_disp_daf   = daf.Pydf()
+    public_key_manifest_daf         = Daf()
+    public_key_manifest_disp_daf    = Daf()
+    server_internal_info_daf        = Daf()
+    server_internal_info_disp_daf   = Daf()
     
     # The follow prefix and suffix are common among all public keys:
     public_key_prefix = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRU'
@@ -419,7 +444,7 @@ The request of the scanner's public key will include the public key of the
     public_key_manifest_buff = public_key_manifest_daf.to_csv_buff()
     # we need the buffer so we can create the hash value momentarily.
     try:
-        daf.Pydf.buff_to_file(public_key_manifest_buff, "public_key_manifest.csv")
+        Daf.buff_to_file(public_key_manifest_buff, "public_key_manifest.csv", fmt='.csv')
     except Exception as err:
         print(err)
         import pdb; pdb.set_trace() #temp
@@ -554,7 +579,7 @@ For review, we will first pull out these values to simulate one scanner:
     first_ballot_id = 50001
     #server_private_key = from_base64(server_info_dict['server_private_key_base64'])
     
-    image_signed_hash_manifest_daf = daf.Pydf(cols=['scanner_id', 'ballot_id', 'image_data_hex', 'image_hash_digest', 'signature_base64'])
+    image_signed_hash_manifest_daf = Daf(cols=['scanner_id', 'ballot_id', 'image_data_hex', 'image_hash_digest', 'signature_base64'])
     
     for ballot_id in range(first_ballot_id, first_ballot_id + num_ballots):
         
@@ -669,7 +694,7 @@ This process would be repeated for each image from each scanner.
     """
     
     # create a new table with three new columns:
-    calc_hash_manifest_daf = daf.Pydf(cols=image_signed_hash_manifest_daf.columns() + 
+    calc_hash_manifest_daf = Daf(cols=image_signed_hash_manifest_daf.columns() + 
                                 ['calc_image_hash_digest', 'is_hash_verified', 'is_signature_verified'])
     
     for image_signed_hash_manifest_da in image_signed_hash_manifest_daf:

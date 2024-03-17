@@ -26,7 +26,31 @@ The Election Manangement System (EMS) runs in an air-gapped network. The EMS als
     For purposes of simulation, we will generate a random key pair that is not anchored further to any trust anchor, such as a
     certificate authority (CA) and likely using X.509.
     
-In these first few sections, we will define a few convenience functions for:
+## Outline of the process:
+
+1. Prior to the election, the Election Management System (EMS) will configure and test individual 
+voter-facing scanners, and other scanners in the central scannign facility (for mail ballots). 
+As part of this process, USB thumbdrives (or other removeable media) will be used (within a secure facility) to:
+    - Send the voting machine the public key of the EMS and signed nonce which will demonstrate possession of the corresponding private key.
+    - Request from the voting machine its public key.
+    - Voting machine scanner will respone with unique ID, public key, and will sign the nonce.
+    - Voting machine may also provide other evidence of operating configuration including proof of firmware version.
+    - In this initial interaction, symmetric encryption keys may be exchanged.
+
+2. The EMS system will collect and post all the public keys of all voting machine scanners in a public key manifest. 
+The hash of this manifest may be submitted to a SCITT transparency server to document who, what, when. Moving the data
+from the air-gapped facility to post will use the TransGapProtocol, which essentially creates a secure channel in USB
+drives.
+
+3. During the election, the voting system scanner will
+    - preferrably use a Trusted Platform Module (TPM) and Trusted Execution Environment (TEE) to maintain a trusted system configuration
+    - as each ballot is scanned, the image created will be hashed and then the hash signed using the private key corresponding with the published public key.
+    - The images must be shuffled to randomize the order so it is infeasible to link a voter to their ballot.
+    - The signed hash will be provided in a related file, perhaps formatted as COSE block.
+
+4. After the election, a hash manifest of all files can be created using any tool, such as QuickHash or any sha256sum type of utility. This has manifest can be submitted to a SCITT transparancy service.
+
+5. Auditing tools can check the integrity of all files, and can also check that each image was created by the scanner and signed using the private key which corresponds to the public key previously posted.In these first few sections, we will define a few convenience functions for:
 * Converting to/from base64 encoding
 * Generate random public/private key pair.
 * Generate a random nonce of specified length
@@ -229,9 +253,9 @@ First, we need to have a EMS Public and Private key.
 ```
 
 
-client_private_key_base64 = '-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEAneXIAijOQA7zReIHwLKqwiFUm/pWbPrdVIwmeYhCgNM02tyy\nDJU00BxG9k3eb6HtsDePCzqE2Fw6mVLT32T3ab6z7D8SR2NQLvgp7kvTY4jqu7mq\nrjoxN9uzvC3M94CzLvmvbDVfrjfDeC5DThSkMOW2n1ig46TqvXHkzCaxcXnRAuCl\nCynP9bNG0t2tkWsS8t4NA+DvtzwflCZkdbzNrmJdWr3xQMu47LktRKxy1/2OkKGL\nROSkyyRMxUtBGZTAGjuvbDFB+lpzrDJeHrbppF7VCKeD24xYRjTpOo/IRvhDhdPX\nxx6N8K2Jfs+rwxjhoiXsBfrELPig7LefuUsGpQIDAQABAoIBAAFWd0uXY2n1Bnge\n2mB2Uw6KgEBDDnTlajcjadcJQcD8KRw6lvKW2Af0WWCQV9Rby5r82YQnloULwP5Y\nDo37ucHmWPllLmc27vC67wYDE/Mpr41wHQNVYGHgBWWQgMZPC5WYDXWt/RXJiKkt\nwSm58Isugw3WDyTmmouI2b6mDEZRFb1bp9BBo/rW8A5DLvIvsrq9fCyzYoQlosIL\nO/8dNPT14hoKdld9rCFAmIB758bWuPpzJ60PUj9EyOQsXre3lTchQ9Uul/M6sUUn\nqjwiGG6PIHdPV+KLA1hzJ11rCHv2YkJy+nnTluF1t83eNQKO03iQ+7UQ/fIE3R/O\nAY5cAKECgYEAyMkEL8fDkhPnQUrKayiuP27YxGQMsJgPC4AVrGA9hg5t1RXW12OG\n4Ju2MrhxTArXWsPBAI7CmgpkCmijHj0H7HdS8GzdHBG1VjvAiJq7qZUomB6afLOU\nDFZ0/4cvepPk+u1lZa7bEWmxJEi2g88/lV5bwlo7Nt9YXG4NLXeMywUCgYEAyVGJ\n2bLD14mLD7KcyaxUqr2rL99P0v1y+Msba4DxtCAzqv+ZlTe+gedTi74u0D3DC35v\nwZfR6FzrED3gUdlMp/f7jRzev8B3s5Ug2sujY7hGtYJJVgx4D1M46NxXeSfl4fkH\nFsflGv3kagNDDYzhAdqwyz9PDKoKPmxk5DL2XyECgYAF1VE50iPsaoedbf7TfisR\nzLaffgigWMqXGvGGQIWJD4JBXpEPUOTqQZvZfWJNQ0Neb7F7wqoEr6iYZNHYXw2L\n4SuXsJH77sfF6ZZ+YYByPNMhGEKEvPLgKOLdSaAnf4R3hc4cVignKVrsIvCqg6rl\nPAiObPCrd3GpvcjEOWTtwQKBgGvE3YGPg+0+8RVvLSV8vjpEnH5dEfNFwCVVPRF4\njms5jc8tUv8hPzd1KTE2lwLc/SuK/LJq3nCARUmFhi7qn3GPe7bXzJpjovCclWDr\nAEVioV+LJk0NEbxKdb2aLq1p4VLtp5DXY1rmrT7fDicT0mPWuSukcWG7KQ6vofbT\nHTZhAoGAboRI7qjobpMSqiEr6+UUeRggwK0EkKluGf4+XdL9Gi6dc92jEEwxjRYR\n55nyje03coC7hNLJGlbJkxPGaXXt4Ijmx4Lgw3cvMvM+PoDoqWfzElZZpnBX0jO4\nKL0+qPGGvc9Bd84H1zruhodreSHNTIhURJR4HgZ8zK4NntBCYYc=\n-----END RSA PRIVATE KEY-----\n'
+client_private_key_base64 = '-----BEGIN RSA PRIVATE KEY-----\nMIIEowIBAAKCAQEAwmMmt7a80mnaKLrnpKIE1og7bfWC8Yoxb9vi8OEKP0M1ITzw\nd+/H8BZ/27/F2zdsNvjhpVYOmT40DAFIcBVPsrR4lVywG6qxJOlnYCoZUPgI4gsm\n2DcNJdW6X22EV7x9tzDRFAAv6PH7/HZH8lZOkLO6Kq5IA63d1Nr4MKAJalck/z2x\nkIOY84cVsy27RHG+3CjLNgpcwg3rcc0z8C7/5t0GA8AcZZW1uRsgNgilceQlaknx\nbnILF0MIQ8KTQ/vORExGJ8kyX9baqWl9CF1ut0ap1MlnvNT16B+xuqLxSxAAchEx\n6Q2uQUGdps/fKI/Jy87Phq59eJNK1rIRqKWupQIDAQABAoIBAC4c3Mqwjh8BLthC\nLGDk8W5d/3EgkGlRrdQaDr4zOF3VCOXDYc0l4+F7yOV9mwdboK9yv36cCVcHh0vA\nwykZmSAsyT0vcXSCu8akmtoYaoyHZn4PBK4+cv9CchWgsogopg7+xN5wg+0H+I3F\nlmAx4q3XgOaOlPVQecL8letdD5a6vyx38A8baSGTPE6AcSAzBmdiOtW9IOWipV2f\nFi6cezYHrRGZrKofeGvX7/ydfF+fItzIdjgSgayPiDP6hGVOHU+A2Gau3DICF4zR\nxcykHtpz+n6QpBCv/tzbQV//Sc1lnLhClq9ts0OOMSzSQlEpoj30A9TQNpYleWnS\nvYlZ0FECgYEA3jwkloRfZoV3ablJ9bafnlKzeigEKTwnhEGrTJckyK08pjXYCkMH\nQxI9gSyXL1jyMwAleCXZ99d+eKQhD3rbC3AVQ0OZcXvVPMZIZw1A2Df/m/HHSxtn\nQ+zuaBWjd2UbVob3bSH2Mt7sKNYEbn2TP8ZxifgaL9XK2dI6ESA2/jUCgYEA3+vf\nDopYUVI9PIb2Sk3mThfJvqwsQMYyXORe+yZLufK0ATdmJ4DpQnpmfTnrwgfgoOtX\nW/XZuAP6ky4dn+WXD/0m7eNOLm+bvvpg8emb8Ino0DxP2ABNmvrhwDcimB2D1Wd+\n36ehXFlOimxqjJV/oVcUPP47yhiIndFbwqJNvLECgYEArjf18u2JIIUHDSHNwkvN\nrD9nJh+Sy4S18e/NS3i9xHhSsHZLjBfp7IGzJ73+M4cGMEcwGJWL38jXA9qfdFQ6\nvie684VeGGIc080Z23e/WwHjZ6xOMSoldVGbwIseIC5qFRYviCV0rYKnHohQ5xGY\nywlV3vRaCyAOK16sWNqpYfUCgYApE2WpjytAT6u4DLHlU4Dp1mdFuOOtRi466BGc\nVJwTkjf++SCeIoGnljhyxEtBHpzQKBuwXNsBbIlsskrw5/bcEf4wKUBQOF0DnX5n\nIglfCI1SlZ236+ZQhbEfx31rFg72+LNHZ8Kr5B4KOnUZMNtmx0iJH8HsArAc8yi3\n/XnxIQKBgHtcqGBfz+hnY5OiY+L8bSFPthszLbZ4GJQr9xq9+de8p1yRU9HKlTUL\nuE39KaBrK7GhQQe0vNhNMrANRsn0y9Y2Vat9iDr92yaxnmtXTrIvketnlwp7JjfB\nDbBY2967WaGAan//96VVTQSvpc5gTVy/U6Hb2ZJzkBYHLctV9JOg\n-----END RSA PRIVATE KEY-----\n'
 
-client_public_key_cbor_base64 = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFuZVhJQWlqT1FBN3pSZUlId0xLcQp3aUZVbS9wV2JQcmRWSXdtZVloQ2dOTTAydHl5REpVMDBCeEc5azNlYjZIdHNEZVBDenFFMkZ3Nm1WTFQzMlQzCmFiNno3RDhTUjJOUUx2Z3A3a3ZUWTRqcXU3bXFyam94Tjl1enZDM005NEN6THZtdmJEVmZyamZEZUM1RFRoU2sKTU9XMm4xaWc0NlRxdlhIa3pDYXhjWG5SQXVDbEN5blA5Yk5HMHQydGtXc1M4dDROQStEdnR6d2ZsQ1prZGJ6TgpybUpkV3IzeFFNdTQ3TGt0Ukt4eTEvMk9rS0dMUk9Ta3l5Uk14VXRCR1pUQUdqdXZiREZCK2xwenJESmVIcmJwCnBGN1ZDS2VEMjR4WVJqVHBPby9JUnZoRGhkUFh4eDZOOEsySmZzK3J3eGpob2lYc0JmckVMUGlnN0xlZnVVc0cKcFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
+client_public_key_cbor_base64 = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF3bU1tdDdhODBtbmFLTHJucEtJRQoxb2c3YmZXQzhZb3hiOXZpOE9FS1AwTTFJVHp3ZCsvSDhCWi8yNy9GMnpkc052amhwVllPbVQ0MERBRkljQlZQCnNyUjRsVnl3RzZxeEpPbG5ZQ29aVVBnSTRnc20yRGNOSmRXNlgyMkVWN3g5dHpEUkZBQXY2UEg3L0haSDhsWk8Ka0xPNktxNUlBNjNkMU5yNE1LQUphbGNrL3oyeGtJT1k4NGNWc3kyN1JIRyszQ2pMTmdwY3dnM3JjYzB6OEM3Lwo1dDBHQThBY1paVzF1UnNnTmdpbGNlUWxha254Ym5JTEYwTUlROEtUUS92T1JFeEdKOGt5WDliYXFXbDlDRjF1CnQwYXAxTWxudk5UMTZCK3h1cUx4U3hBQWNoRXg2UTJ1UVVHZHBzL2ZLSS9KeTg3UGhxNTllSk5LMXJJUnFLV3UKcFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
 
 
 ## Create a request for the scanner's public key
@@ -264,9 +288,9 @@ The request of the scanner's public key will include the public key of the
 
 public_key_request:
 
-{'client_public_key_cbor_base64': 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFuZVhJQWlqT1FBN3pSZUlId0xLcQp3aUZVbS9wV2JQcmRWSXdtZVloQ2dOTTAydHl5REpVMDBCeEc5azNlYjZIdHNEZVBDenFFMkZ3Nm1WTFQzMlQzCmFiNno3RDhTUjJOUUx2Z3A3a3ZUWTRqcXU3bXFyam94Tjl1enZDM005NEN6THZtdmJEVmZyamZEZUM1RFRoU2sKTU9XMm4xaWc0NlRxdlhIa3pDYXhjWG5SQXVDbEN5blA5Yk5HMHQydGtXc1M4dDROQStEdnR6d2ZsQ1prZGJ6TgpybUpkV3IzeFFNdTQ3TGt0Ukt4eTEvMk9rS0dMUk9Ta3l5Uk14VXRCR1pUQUdqdXZiREZCK2xwenJESmVIcmJwCnBGN1ZDS2VEMjR4WVJqVHBPby9JUnZoRGhkUFh4eDZOOEsySmZzK3J3eGpob2lYc0JmckVMUGlnN0xlZnVVc0cKcFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==',
- 'nonce_base64': '+PjEpFV0T08R80xD0RbiBWHk6AJPFzq9C1MXhJWfc3E=',
- 'signed_nonce_base64': 'VAkeGS7WidoX0hKuhSG0egB4vXtN1Z9nZr+MZO16lHGlUK6irw1yPwbZxcYvRzgQEliK/S4vVBAlGTPZGwyCxkeM/MTf9ZAjApOl01zLxNqeoQ7J75MNgR2q9IBQ9ugpEoZJ5ec13LAIrBKJ/0ZnbDWv0DSsTnIeYqZALYX7zQFkwKCbfVmxP5dfLcaL5vR/Duc/fFvoKoHJvKzZ4H9K/xk7Ahg+Cxfgl5U1HiSQ+B2C06l9RrkBI1MzFlAHnsZhBdAyrYYvszL9uyS8sCqJU9T1wawAEs2hklQcTa4t+qKAIuSVIb4q+WeSgjn/yI+s3s/p3VTK0x0BX1HwLzak/g=='}
+{'client_public_key_cbor_base64': 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF3bU1tdDdhODBtbmFLTHJucEtJRQoxb2c3YmZXQzhZb3hiOXZpOE9FS1AwTTFJVHp3ZCsvSDhCWi8yNy9GMnpkc052amhwVllPbVQ0MERBRkljQlZQCnNyUjRsVnl3RzZxeEpPbG5ZQ29aVVBnSTRnc20yRGNOSmRXNlgyMkVWN3g5dHpEUkZBQXY2UEg3L0haSDhsWk8Ka0xPNktxNUlBNjNkMU5yNE1LQUphbGNrL3oyeGtJT1k4NGNWc3kyN1JIRyszQ2pMTmdwY3dnM3JjYzB6OEM3Lwo1dDBHQThBY1paVzF1UnNnTmdpbGNlUWxha254Ym5JTEYwTUlROEtUUS92T1JFeEdKOGt5WDliYXFXbDlDRjF1CnQwYXAxTWxudk5UMTZCK3h1cUx4U3hBQWNoRXg2UTJ1UVVHZHBzL2ZLSS9KeTg3UGhxNTllSk5LMXJJUnFLV3UKcFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==',
+ 'nonce_base64': 'XMjPlvhRP+3pVIt2xGDjzHGl0hfVZ3UwRW1o1zH8pS8=',
+ 'signed_nonce_base64': 'MFZAqCIUDYAY+hPNFOV9g+8t/38cumC9Cc+/qy0gdFb4RWF5Fwp3JckC1a2h6AJCPQQQc2yRD+ZnTCB1QYbaeYkSYh/R2AcPyv5gmjnrcPlPfzjm/HX6tMPezTvxWJUDoTHVP0z1PDz6o7aR82QmHbm2pYhTnbUCnb5coqV1gx3xJpKzT65WBKKMSth5nIYjSxbDmrkGPc88HBg7VIiL3p2U1qTgytefawDw+a7X6f6KofWHeAzKQFzww4bVrxMnzqLRGQhKyVoKYQpjuDAbUVcBVm//uWx+6lZQKMAnd3jliTBi/pOHalTT8Oi1Qsx6B3XhvML8U2AqgDWQY2PvGw=='}
 
 
 ## Scanner checks request
@@ -318,10 +342,10 @@ The scanner acts as a server and creates a response by creating a key pair,
 
 scanner_response:
 
-```{'nonce_base64': '+PjEpFV0T08R80xD0RbiBWHk6AJPFzq9C1MXhJWfc3E=',
+```{'nonce_base64': 'XMjPlvhRP+3pVIt2xGDjzHGl0hfVZ3UwRW1o1zH8pS8=',
  'server_id': 10001,
- 'server_public_key_cbor_base64': 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFuTDlTYXN4Qm9Fc21rVVY0bTdsQgpWWXkwelBJWUJvZSt3eW52cGhEYmZDbEF6eTZxeUVyNThMQ1lkTlFDS01SWTJwalEvUE5oK1Q4Ni9UeTVpcTQ2CklITnorK3k3RmFaWStTK3dCV2NUb1c2emkxOHZqZ2ZlWG5pY1VLQkFSTWk0MkNubUw5bXdDMGxrci9JMmZqRDgKM2NWN1JYYUJoaUxRZHhLTkJIVUw4RmFEWDV3NkoyTHZyS2hvOGpiVGVwZkZZK016d2llY2t6S0tyNzhxdzNmOQpsUUpmYWpLZ3owWURPWVpKbko4bytyRWNmYTdvVDRpT0N1K0hWWHZVZVRUd29pNVQ5blV3djBnUzc3VWJvNmcvCkN2V1c2Q0ZCWmJ3dmlBVEt0WU5xSHJ0MVBCZG5OemlXeHVPMzRRV1VWQ0FYb25sZ0R3KzdLMGljT211ZmVDM2kKNXdJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==',
- 'signed_nonce_base64': 'Y2KXP5RGfXIh+Yhnsbbi49RYfFO+q7hcaNbkg6Hho15/wFFjJBn7i65WWjhzHeysQMnw28dZWR9eHHQR7l6wcz7IXzAvoIKCGdKEDDK5NBxL7bgidcgs3Fe9QYSeuFXrkClCsFlIGO2/niarBDb1MPqhYJXYEGgXNKpPc8zRa5PLcW4C+9SoFSfc/src02CbcASwOYvypg0pv0c+2eOpZKrgpjWjBjyrcKEKLBarRWHhyZvEGsLoGBScsXt7HJJ4809Z5p57CSwECrl+1Lm1P82qkqM0lE2Ai0VxRaWeMb4QZHQ0SEJj6CGJ7rl0Du+fw4wTArjf8G9tcfLz7fzRHQ==',
+ 'server_public_key_cbor_base64': 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUExMTVHQ3djNUZTQkZWN1hDSkdkSgpXSWdlUVZBS2g0N0tmK2FFd0NCdCtGN3MrZm96NlVFT0xLOUhhc0xyOThvZ1pERmZmMENQLzZYUGFZSjIxQS9KCjZVa1dNc2habWpyeU9pLzZNampheEFKaTVrNXJ5Zzl5S1FEeXY1NG0xbmF3VG03V0NadmRZVG5QNGpib09BTVkKN0lkZnk2R01QSmZVQkd0S2RtcVgvMlNKWmxzQ0JRQjJad3dWVjNYOFFjQzBrc0ZJbFQxTW4rcnNNTXNLclNWNgpuYUFEeUlHZnJLamxLUUJXNVRtTTJYTlA1bEQ1WDcvMkphTkVveUZBODZGN3pWb2ZkankyQ05oRFhhemF4MGpRCjBUK3J2eHNrTUxza1VNam1ZK1ZvKzdqcjBxZXltNERxTzNFWmE5emFXbDZvUmdXUmJFQ0wxL2d0N3lpak1TWVoKVFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg==',
+ 'signed_nonce_base64': 'O1durJ46sL/5VEwRIrlHODGCFUv0gA/Ini9G+NsqzSz7qGNAHHQzG/mg0FYi1UoLPevOqA0LJOMFFCERoNFFQhwMmrL6mhdRLy9Cj7qc0gGTbSXs9siWeIlW4M51gP7qgv1WYw5ZWv6qTGfG/lvDQp0+Z/0tzAuRbgwj4uM4IYzrDAWk0N/sZ834oFQg2i7lCXju++LM0nU38hNpMr3k+2VVHqYmZSnxtYEneaAo4Q5ctRPfWmvKIA3dslK1vxCqRjhvyZrJmQspRD6qBXqEDKW51OSGRCzn4yOP9jmr+CjFjQN4DmvWzeF41r28ORB7wrEgZ8caoEq4ElRo9UiJPA==',
  'status': 'Success: public_key is consistent with the signed nonce.'}```
 
 
@@ -355,10 +379,10 @@ We can simulate that this process is repeated for all scanners.
         Here, for expediency, we will simulate only 20 scanners.
 
 ```python
-    public_key_manifest_daf         = daf.Pydf()
-    public_key_manifest_disp_daf    = daf.Pydf()
-    server_internal_info_daf        = daf.Pydf()
-    server_internal_info_disp_daf   = daf.Pydf()
+    public_key_manifest_daf         = Daf()
+    public_key_manifest_disp_daf    = Daf()
+    server_internal_info_daf        = Daf()
+    server_internal_info_disp_daf   = Daf()
     
     # The follow prefix and suffix are common among all public keys:
     public_key_prefix = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRU'
@@ -421,55 +445,55 @@ We can simulate that this process is repeated for all scanners.
 public_key_manifest_disp_daf:
 | server_id | server_public_key_cbor_base64  |          nonce_base64          |      signed_nonce_base64       |
 | :-------: | :----------------------------- | :----------------------------- | :----------------------------- |
-|   10001   | F0MzJCdEZLQXMv..zZpWEtUNWYKYnd | 0st6r/AFJuamto..ZfRE0H1yUFFCs= | rQQ++gV7j12inN..fLIh/aSzRSAA== |
-|   10002   | FxaGM0anNlSHFy..GNUa1RhcDUKZlF | dE2q1vGL35ng4t..dC30hvzhhDVgA= | WsUqXpWsTv2Z/n..s+EAxfPH4GOg== |
-|   10003   | E0dkZKelp3NmRX..HliSkxTUWMKZXd | C4zJ/2mTFUxthY..EiB1YUTjhjIGw= | 1w31M1LiHDpo3B..TuFBLTCSUprQ== |
-|   10004   | FpN0tNWHlmd3Vo..jR0VVRLRHQKY3d | obWilndylsEEYr..ZEuTMLn0+ZUM4= | d0uQpK5xhGqeTx..ss8ODhXWhB9g== |
-|   10005   | FvVUgrRXZhN1py..itSRkdGSy8KOFF | eSEK+aIXBd5omL..3sYhpfkuPgWCw= | i5SJfsYrySH8L4..BdkMFcty4/5A== |
-|   10006   | F1Z0c1YlVDTk9P..2drK25Pa2EKdnd | YVEsDmDGw5QAHy..NRtcqndbJ6ySE= | gPS7tUFZbZWsur..xTu4luTe5huA== |
-|   10007   | FwQjd2QzlxdW1F..jJqU3FnUncKbXd | vkzCkdYYnjLNbr..SqKNqmT/mgfOw= | TDZK+XkhDzhs3v..lSQVqMl60oog== |
-|   10008   | F6VjF0dlBBaUZI..Wl5UEo2eWcKcHd | uA4Ku9bXZyPK7R..2rqq0zQSb6SSg= | B/daxPIULHdTla..aDxMGDJ511mA== |
-|   10009   | F4bStlN0NVTUgz..nd1TUpJZ0kKSHd | rymQXy1IH02BA3..4qHipEE6RFJjA= | f0A0P/kB0qeanv..AMqCTheAqhyg== |
-|   10010   | F0dmlLdXo0YlZI..TFDQzN2d3MKY3d | rrO3r/jDypTSnc..Qs2RZDET8BMAM= | QpYteED5Vtcctu..IWvAaKfAbyJg== |
-|   10011   | F5SDlIcjdCNVgy..28zeTBURGEKZ1F | JpyzesSEJJ8JW2..mLhpZ4kEJLxgg= | vXyKNz49mPHXxo..8jx1PaUCqyfQ== |
-|   10012   | FyM01JMjZUVUtR..HZEZ29NOFIKNnd | +bxEoBrw8zZRb2..Skzg8PvReIYeg= | d3pElLzRYEP09L..Oj2HdDBHLOHA== |
-|   10013   | Ewc0EyalVxSStM..GlySG5kOEwKeXd | qI25vT5oVSBJFW..W+t0R0fEuJVsQ= | o2+NWBel/HUv6o..LiyXvItrbj6A== |
-|   10014   | F5d3VaY3R0eTNF..0x5MW9sTlUKRFF | YcRxb4bzeUQA/Q..gbxQsrWZw4Eoo= | eEnIHKLISRptjE..1NVfGX4JN+3g== |
-|   10015   | F3a0tHWUxTOHd2..lIxWmxwdmoKWXd | FEMz447HyaIgkd..lj4jLguHss6IU= | C/p+rGTow7Okd0..uhNzaIvTcshA== |
-|   10016   | ExdXA0dTB2QWY5..k92TStoVEEKaXd | BuSxiwhEgbBpw2..w+d50bgeUKEQI= | AzTm3k5AAQcLec..hjPuQRFgiyxQ== |
-|   10017   | F6TnhYNnp0NHdv..0RpbmhHR0UKeVF | Fp8uUiDQia1Wzu..Byz5mJXYlfut8= | Ing8dQWsqnDggU..082oxxgZT7tg== |
-|   10018   | FzS0tad1JUVklV..UR3N1NwZEUKd1F | cMXUrCDTDJ3rYq..EwNkNXNgEpgJQ= | WrUgVQ3HS1jsHX..kSheplzEBLeQ== |
-|   10019   | F2QjZwS01JTmli..E5VVmRiZ08Kc1F | gu0pmDenXEYXbt..jU44jjr+t6lb4= | TEE16wcyd+ckcG..PqEI76mPQzjg== |
-|   10020   | FzM0pzNHZjNVg4..XE2T1dpNzgKTHd | Tb9kx8BLitSyvF..sapnYbTqI/Ux0= | mK3d8e+M8WNQkF..ZEoH/lcpM+2A== |
+|   10001   | EyeGtkcExQbFFJ..G5mSG9KM2cKWFF | 6aeH+ktvfPNfld..AJ8yBqpjs16yg= | 01Yv/aLl/TPE/X..txCBXjdXkCpQ== |
+|   10002   | F1RFBhSmJudDli..VlZeWZ3QkoKS1F | drzrkBKQEz6hsT..lckuq2nBeEHzM= | mtvhUOnCgaX+9T..T7CZhzE7TX8w== |
+|   10003   | F0dmloc2pDemR1..jdxQ0FTSUMKc3d | gkJsPU1OHUuKSG..AuNQ3pPuvXVYI= | laGBxR5Ie5wyFH..B2hUzPWdeOQw== |
+|   10004   | F4ZjVBWVRKNk5l..Dl0Z1pES3cKS3d | k+NJJ+UZqnoeMk..O2Bmr5hNYGKEk= | A9ydolBKKe1Y3U..rtEmXKE7BM+A== |
+|   10005   | ExMXNDWCtiNElx..i94SGYrN0wKL1F | WFjDzsEqHt9/cn..G/UWi00c15294= | F9RDT6buMGRE8k..NZj6TlV5HcZQ== |
+|   10006   | EyU05jVEJ0WDQw..DFNOVFJS3AKTFF | zCHNFA2KZQZYJe..tiNtvAsbJhtDc= | at8G3JSv2jB83i..9JbYDJFi8Jig== |
+|   10007   | FoRmZHRERKb0Vz..mFINm5WV0wKbFF | P4OnrH62x3tJT5..jxEhqcVW8LZ4I= | WmIPeAmoNwwHrz..3ibau+37ccTg== |
+|   10008   | F1dzJLSmNlU2l3..WR5NFlRTDYKRnd | eAq/spCpA3M7O+..rtkldyVKa/3KA= | WyG392MxqMhHmN..akeScDkk8u+g== |
+|   10009   | FsUVlRUDdIVlI1..DNXK1lJRWIKWFF | wTpZDHM+NobgtM..TXPMV/XWLiQAc= | ePSvycqJohvmN1..9VYsqPn9mLiQ== |
+|   10010   | FzVlhQd3BzdmM4..HNRbzBmOU4KblF | 4fXQr5RJ5349OS..9Widf6ePM/lH0= | Nrqgz1JrgsyMGq..ycdd7N0+BwVQ== |
+|   10011   | FwZWdqa2YvZFdM..zVSSGRwTlMKRnd | gsXfipXj1t3K5N..Z9/Q5XezHSyYA= | ApDujgbFUlsuRZ..rCpMEo4REH7g== |
+|   10012   | FxbWVoUUZFbEtD..XNRQUc2eFMKUHd | A4L1wBNH094o0N..3jfTzIzgSnYYw= | faaKuCFwoZWnyO..TlztgkdVA3kQ== |
+|   10013   | FsdHhTRk53N1pC..UpTdkR2b0gKNVF | 04csLBKVi8EULe..Z+pa2/wBky2w8= | ZS43ANbqt0ySAG..7ccwKTA1lRHA== |
+|   10014   | FuU3lvYURWdy9U..UpKWmFHYXkKZXd | NMtDVMoXrecZUz..b9WzpHPPBGozg= | mwYJ7BrdszxKvB..WIxDVvJ0rjMg== |
+|   10015   | ExQVc4UUYwa0dC..mUySWxUbmsKbVF | dGpgJQ2Fq8TVo4..qtJWyi0D4R2u8= | WAxhdiyBbLUqEo..UyYj5WEZuE/g== |
+|   10016   | F0VGJERVBjZGM3..EwyZjQ3T1cKNXd | pHoTUK9V84ORS2..ZIuqPM8OeXShs= | Db5LTat/Bdnrh1..L3pLY3+KSFYg== |
+|   10017   | FwYmFCdHdyc3Bh..UJPMDhjd00KZnd | 2HZeW54BqX0loZ..Je82cGMujtSCA= | XyxxQKMTs6vkd/..4Wo0hSqslLgw== |
+|   10018   | FsU0Z0VGVNNXUv..UtTT0hERHkKYXd | 9tEGs4RGuf5b6s..bZsGE2cIx0Ig4= | B2ZRd+r5VlLXJ+..+QuG7pNVMqbA== |
+|   10019   | F1RGpuSWtPbVhN..WtwNERYSHcKdXd | jv4189KnVRSiHn..hMbO8HuNlwh9w= | sy8GwsuZzr5Gaf..pIMYRheFaaJA== |
+|   10020   | FxMWtPZWduZU9Q..m1LRHRjSkoKWXd | Y/HCy9K4rfrSNx..ZqvnNvITd5Jw4= | ksfJpgQpBBRV5W..9RhDIHFo8avw== |
 
-\[20 rows x 4 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 4 cols; keyfield=; 0 keys ] (Daf)
 
 
 server_internal_info_disp_daf:
 | server_id | server_public_key_cbor_base64  |   server_private_key_base64    |
 | :-------: | :----------------------------- | :----------------------------- |
-|   10001   | F0MzJCdEZLQXMv..zZpWEtUNWYKYnd | MIIEpAIBAAKCAQ..PdVr1Dp0iniA== |
-|   10002   | FxaGM0anNlSHFy..GNUa1RhcDUKZlF | MIIEowIBAAKCAQ..KlShKMoel88f2g |
-|   10003   | E0dkZKelp3NmRX..HliSkxTUWMKZXd | MIIEpAIBAAKCAQ..23ZLzrb6GajA== |
-|   10004   | FpN0tNWHlmd3Vo..jR0VVRLRHQKY3d | MIIEogIBAAKCAQ..hcolF/L8kXYGQ= |
-|   10005   | FvVUgrRXZhN1py..itSRkdGSy8KOFF | MIIEogIBAAKCAQ..TcPe2x2JKe5UM= |
-|   10006   | F1Z0c1YlVDTk9P..2drK25Pa2EKdnd | MIIEogIBAAKCAQ..jwxEDcNstwJ7E= |
-|   10007   | FwQjd2QzlxdW1F..jJqU3FnUncKbXd | MIIEogIBAAKCAQ..mIXQUrFVXqxG8= |
-|   10008   | F6VjF0dlBBaUZI..Wl5UEo2eWcKcHd | MIIEpAIBAAKCAQ..EnTOaXTLU2Ow== |
-|   10009   | F4bStlN0NVTUgz..nd1TUpJZ0kKSHd | MIIEpAIBAAKCAQ..TbodZXpbEb6g== |
-|   10010   | F0dmlLdXo0YlZI..TFDQzN2d3MKY3d | MIIEpAIBAAKCAQ..0Bn+4F3rG8PA== |
-|   10011   | F5SDlIcjdCNVgy..28zeTBURGEKZ1F | MIIEowIBAAKCAQ../mnC7HFt/5hK+I |
-|   10012   | FyM01JMjZUVUtR..HZEZ29NOFIKNnd | MIIEowIBAAKCAQ..2OZm0uXNoRdEaz |
-|   10013   | Ewc0EyalVxSStM..GlySG5kOEwKeXd | MIIEowIBAAKCAQ..WtP7YWXP7AM1Uo |
-|   10014   | F5d3VaY3R0eTNF..0x5MW9sTlUKRFF | MIIEpAIBAAKCAQ..ODOsUfaeXEnQ== |
-|   10015   | F3a0tHWUxTOHd2..lIxWmxwdmoKWXd | MIIEpAIBAAKCAQ..zXTJHkSC5/QQ== |
-|   10016   | ExdXA0dTB2QWY5..k92TStoVEEKaXd | MIIEpAIBAAKCAQ..SBGqyxLROoEw== |
-|   10017   | F6TnhYNnp0NHdv..0RpbmhHR0UKeVF | MIIEpAIBAAKCAQ..HamfntyuK2TQ== |
-|   10018   | FzS0tad1JUVklV..UR3N1NwZEUKd1F | MIIEowIBAAKCAQ..ebYuJCu5EtDink |
-|   10019   | F2QjZwS01JTmli..E5VVmRiZ08Kc1F | MIIEowIBAAKCAQ..9qIwBLWnXv27L8 |
-|   10020   | FzM0pzNHZjNVg4..XE2T1dpNzgKTHd | MIIEowIBAAKCAQ..APIa7baRT5cXUE |
+|   10001   | EyeGtkcExQbFFJ..G5mSG9KM2cKWFF | MIIEogIBAAKCAQ..aicGMXyTmECm0= |
+|   10002   | F1RFBhSmJudDli..VlZeWZ3QkoKS1F | MIIEoQIBAAKCAQ..VJVHg4WMnElg== |
+|   10003   | F0dmloc2pDemR1..jdxQ0FTSUMKc3d | MIIEpAIBAAKCAQ..Dy23m8ab+E7Q== |
+|   10004   | F4ZjVBWVRKNk5l..Dl0Z1pES3cKS3d | MIIEowIBAAKCAQ..4Lj3P7wyLnHj8f |
+|   10005   | ExMXNDWCtiNElx..i94SGYrN0wKL1F | MIIEowIBAAKCAQ..TDUVezCvwue0QC |
+|   10006   | EyU05jVEJ0WDQw..DFNOVFJS3AKTFF | MIIEogIBAAKCAQ..G9whUhPOz9o/Y= |
+|   10007   | FoRmZHRERKb0Vz..mFINm5WV0wKbFF | MIIEpAIBAAKCAQ..J9G6mvcFJQuA== |
+|   10008   | F1dzJLSmNlU2l3..WR5NFlRTDYKRnd | MIIEowIBAAKCAQ..75U4+Mgs/69mFl |
+|   10009   | FsUVlRUDdIVlI1..DNXK1lJRWIKWFF | MIIEowIBAAKCAQ..Wpj1cwa01Rfzrn |
+|   10010   | FzVlhQd3BzdmM4..HNRbzBmOU4KblF | MIIEpAIBAAKCAQ..nw16bLP2wAUA== |
+|   10011   | FwZWdqa2YvZFdM..zVSSGRwTlMKRnd | MIIEoQIBAAKCAQ..6CcScx1ZVqRQ== |
+|   10012   | FxbWVoUUZFbEtD..XNRQUc2eFMKUHd | MIIEowIBAAKCAQ..gKoNmom3H/BK/C |
+|   10013   | FsdHhTRk53N1pC..UpTdkR2b0gKNVF | MIIEpAIBAAKCAQ..+IqdT/Hwnf6A== |
+|   10014   | FuU3lvYURWdy9U..UpKWmFHYXkKZXd | MIIEowIBAAKCAQ..xZJw8qVz8lwH6K |
+|   10015   | ExQVc4UUYwa0dC..mUySWxUbmsKbVF | MIIEpQIBAAKCAQ..dWkijtoItQDxQ= |
+|   10016   | F0VGJERVBjZGM3..EwyZjQ3T1cKNXd | MIIEowIBAAKCAQ..Eu//jQXgOJV0cK |
+|   10017   | FwYmFCdHdyc3Bh..UJPMDhjd00KZnd | MIIEogIBAAKCAQ..vpCwC0d567rcE= |
+|   10018   | FsU0Z0VGVNNXUv..UtTT0hERHkKYXd | MIIEoAIBAAKCAQ..Mfl4onKIasSZoD |
+|   10019   | F1RGpuSWtPbVhN..WtwNERYSHcKdXd | MIIEowIBAAKCAQ..tWIjKdN8ePtC0l |
+|   10020   | FxMWtPZWduZU9Q..m1LRHRjSkoKWXd | MIIEpAIBAAKCAQ..Sot4tER8zeRQ== |
 
-\[20 rows x 3 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 3 cols; keyfield=; 0 keys ] (Daf)
 
 
 
@@ -483,7 +507,7 @@ Now save these two files. The first file, 'public_key_manifest.csv' will be save
     public_key_manifest_buff = public_key_manifest_daf.to_csv_buff()
     # we need the buffer so we can create the hash value momentarily.
     try:
-        daf.Pydf.buff_to_file(public_key_manifest_buff, "public_key_manifest.csv")
+        Daf.buff_to_file(public_key_manifest_buff, "public_key_manifest.csv", fmt='.csv')
     except Exception as err:
         print(err)
         import pdb; pdb.set_trace() #temp
@@ -505,7 +529,7 @@ Use the function to generate the hash value.
 ```
 
 
-public_key_manifest_sha256_hash_digest ='dd29a025f2804d4f3ac3d67cbf997bc0ad84da7f5f62ef3c718a3442a30ca816'
+public_key_manifest_sha256_hash_digest ='7fbbe6f6c26c0c3ea69fe9b4ad9906b5edd026b5add06900d31894af061cc306'
 ## Set up an append-only log using merkle tree
 
 Now, given the hash, we need to submit that to a SCITT transparancy service.
@@ -591,12 +615,12 @@ transparency service.
 - previous_size =1
 - scitt_log_index =2
 - current_size =2
-- scitt_log_root =b'\xd8\x88=`\t\xe9\xf5\xeb%n\x99-\xb5T\xf84O\xd49\xd7\x81\xd1\xe2L\xd0\x1e\x9e\xbe\x12*\xb0{'
-- inclusion_proof =<pymerkle.proof.MerkleProof object at 0x0000014B62FCF5E0>
+- scitt_log_root =b"M\xca\xb7)\xd6\xe4\xcfI\x86X\xcc\xee\x94\xb8\xba\xc4w\x86\xcc\xdd\x9c.\x8c\x9eXoT\x85\xb9\xf6'\x02"
+- inclusion_proof =<pymerkle.proof.MerkleProof object at 0x000002271D3D7B50>
 - is_included =None
-- consistency_proof =<pymerkle.proof.MerkleProof object at 0x0000014B62FCF460>
-- state1 =b'\xe6\x8b\xb2\x9a\xac/G\x8aXV\x97\x88^~q\xdd\xb4\xa7\xe7\xb9M\x9e8 buBD(O\x11k'
-- state2 =b'\xd8\x88=`\t\xe9\xf5\xeb%n\x99-\xb5T\xf84O\xd49\xd7\x81\xd1\xe2L\xd0\x1e\x9e\xbe\x12*\xb0{'
+- consistency_proof =<pymerkle.proof.MerkleProof object at 0x000002271E458070>
+- state1 =b'\xc0\xd1=\xe0C\xb5S\x86\x01\x93\x85\x19y5\xc0\xadR\xe6\xbf\x1a\xcd$\xfb\x07)\xeb0\xd0JH\x91\xec'
+- state2 =b"M\xca\xb7)\xd6\xe4\xcfI\x86X\xcc\xee\x94\xb8\xba\xc4w\x86\xcc\xdd\x9c.\x8c\x9eXoT\x85\xb9\xf6'\x02"
 - is_consistent =None
 
 ## Next we will simulate getting ballot signed hash manifest.
@@ -628,27 +652,27 @@ server.
 
 
 * server_info_dict['server_id'] = '10001'
-* server_info_dict['server_public_key_cbor_base64'] = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0MzJCdEZLQXMvTTlrcU1KL2F4Uwp0aEM3eldzOStXc1RXODRBcU8wVFdZSEt4aTliNGtNL2lwM2dTYmwxTGV1Wnc4ZGtXcE1Eb3FLU3lxWm9rMFN6CmFjS0ZsOVNjYW1xRS9KTUpqam5NR0NiaEkrZ3lhdnQvWkRmSS9NdlFNRFBiM3pHbWE0VlRSSzZ1ZjdJQlFMTk0KNko1b01xN3g5Qm1qbWpnM3FzU1kraTlIc3BsU0pWbVBqMU96QXg4dHVxeXdHeU5ZU3dvcUZNbW1UbExFdSt1MQpLaElLbEJGMU5wWTVha0x5b0dyeXpIQzVQdHBJNnR3OTl5aCtZUDBJWE5KL1RJcTA5Y2xDbi92QlUrdkNldVhYCmtFZGNCSDAvNEV3alhYeDJ4b210c0ppWGFMMFNrYkFMaHMwYnl5VVVWaXczV04zVk1wWEtvWUtIVzZpWEtUNWYKYndJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
-* server_info_dict['server_private_key_base64'] = '-----BEGIN RSA PRIVATE KEY-----\nMIIEpAIBAAKCAQEAt32BtFKAs/M9kqMJ/axSthC7zWs9+WsTW84AqO0TWYHKxi9b\n4kM/ip3gSbl1LeuZw8dkWpMDoqKSyqZok0SzacKFl9ScamqE/JMJjjnMGCbhI+gy\navt/ZDfI/MvQMDPb3zGma4VTRK6uf7IBQLNM6J5oMq7x9Bmjmjg3qsSY+i9HsplS\nJVmPj1OzAx8tuqywGyNYSwoqFMmmTlLEu+u1KhIKlBF1NpY5akLyoGryzHC5PtpI\n6tw99yh+YP0IXNJ/TIq09clCn/vBU+vCeuXXkEdcBH0/4EwjXXx2xomtsJiXaL0S\nkbALhs0byyUUViw3WN3VMpXKoYKHW6iXKT5fbwIDAQABAoIBAAbhDLDO+wZEE0Xh\nGOnKwRsUS4YrBBrKueISOhIbOUN8yzZc5iv4a3Rt8M+yxULgd1ZQrmF664L4Z1pz\nnK4QwE0xvsJvdSHENpIljREo947cPkqTVPiPzznZoY5gscBs4Uxf1yZmzDVh+ybM\nbKGZV0PNVIi56FZHc8u/Wc7sKfQPK3cpUzo8/Z5py0XniGMf49t5YHDmfUR1qijP\nmWAUzDwfvDwRhZ8lj/ZqW4oHUDbeHJx4YUT7+sfMkp8tZF82IoxObY3/fKOX7cKf\nV/y5uwSaAiyyd3G2C3TkN617qLFnShe4pGvvUXQgZcWEisV/Ii2b0K53xQG3wfSL\n5l6ZLnkCgYEA1U/6ebjS3tU289KUQBlF3br20CWX7iQIU8Hx1Rw1D4jwFvzfVQ8t\nEGCAaCSUB5LwFRENEMIRJ6tzMthsqAMQpyHI/qDeMI7G3IUUIzJbz8OZfCPNH0JS\nogJ9ToeCBKy47Mhwzo4mWZ1gMMbNQ/C5E+M9TC67ISCYai0CU4kd0m0CgYEA3DW8\nSo9Ntk+wa3NZnXAxr4meNtj5+p4IoSnxOQIoLvZ4FL6AZ/oRa05+TMMEokVzW+nD\n3oQk0i1Z+porxhVauCJR0wtasrka6cBz83afGp+qWvWQVYc1tfqnKOcOhL/xOSjr\n34MzR3w/ZY5CvLMv3ULIM8GlKYFAa0tr7OLAr8sCgYBhagHgHqimPMa4uJ0dXK1M\nYjqeudxVU709yt9OzG/q5UWHqfmv1Ztl1Dwv0yyK/O6JIF1QHuBItoKIYM/WNngf\na01oAz0U/c8RG/EjVbcZ/aCVUaA2O0qTVAG3oCifS+WztKHXopEe8cDg5ZkOAtvy\nmh7/MIQiz8jrDBz42zB0TQKBgQDHn2bLaFEYXfEd1vl8AULpUCW+rr8d87j68Fye\nQ1hOClwc4fzhRQ4ZapSP3ZIL0E2dGrLWuo/uf/I7fRsFfEI6/dGTMY3MyoSdNjtm\njzf4GJmDz2xCPEnyaAC00ZCVwrJYEMKSYgtQWE/YLjhNe1p+h5WZZYflsifFnB+A\nJKZsNQKBgQCyRsEYinURm+879Fdv7OaaNNs/R4PZzdWGZffhH1FRVxQhQxxjc8o6\nX7tgEBEwsZ3Ubb9e3RO1YVnqre3FIeqxET0s0XbvD4p3mzmuc+X3uWtuCvilcVcS\nWbNqmzb4hD9ZYLekNMueVKv+zHG6k78HkLXHFkwCNIPdVr1Dp0iniA==\n-----END RSA PRIVATE KEY-----\n'
-* private_key_scanner_10001 = <cryptography.hazmat.backends.openssl.rsa._RSAPrivateKey object at 0x0000014B62F77490>
+* server_info_dict['server_public_key_cbor_base64'] = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEyeGtkcExQbFFJMHUzYXRKVm9DTgp2citrZ0xBU3JabFpJckJ3OHlVZFczUEFXMjlNQ1JYeGE0ZXFUYlpzcDFCaEtuR3ZKTlQvYVNIenB5RmRzTlFtCnNESHRPTmFNU2tTQzBUVmlGdHhtSmNZTzdiUm82UEpBVUlMdTVzUzBYcXhSZmxZbHpITjFtSkhhSXdzMUhRZmcKNmIvSjVhYldzdUNZYUMrYVRScktiWUVLcDlHeURwR3ZSYWcrNXhvVlJaWno1VHhFRmlhT0JaRktyOXE1TWdNSApuc0FMR0lLVFF2TUdpR0dUS00yUXZiVFQ2alg4Znc2Y2F4NGpzMkNMVWhPdzhiRC9BMWNUK2ZTWUJQd0llVDI4Cm16VCt3RzNlbUs4Qm5aZE9BTkpkemQveTRXRG1KclcySWNBdVFEbFJZOU84Q1NoVlpTTnRwNnBkbG5mSG9KM2cKWFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
+* server_info_dict['server_private_key_base64'] = '-----BEGIN RSA PRIVATE KEY-----\nMIIEogIBAAKCAQEA2xkdpLPlQI0u3atJVoCNvr+kgLASrZlZIrBw8yUdW3PAW29M\nCRXxa4eqTbZsp1BhKnGvJNT/aSHzpyFdsNQmsDHtONaMSkSC0TViFtxmJcYO7bRo\n6PJAUILu5sS0XqxRflYlzHN1mJHaIws1HQfg6b/J5abWsuCYaC+aTRrKbYEKp9Gy\nDpGvRag+5xoVRZZz5TxEFiaOBZFKr9q5MgMHnsALGIKTQvMGiGGTKM2QvbTT6jX8\nfw6cax4js2CLUhOw8bD/A1cT+fSYBPwIeT28mzT+wG3emK8BnZdOANJdzd/y4WDm\nJrW2IcAuQDlRY9O8CShVZSNtp6pdlnfHoJ3gXQIDAQABAoIBACsUVyXJUWxN1kcz\npKnjgPtehyPeeu2zVzlg4/SK+ai/q7TOv26R5/QyqqO5GMgVH+XOkJd3Yfjz+gqE\nnv1j2W+PgYtJdDAuJGKqUm0YTOVkeg73CCG1cDvkYsDxMF3lF+j1W11F3ntvQird\ny0W4BNsxIKuNEG3/hzgFFBvRBrhc580pUqMgIFKD0BGnFF3WCaCgMjkYpiFEm+v4\npZLwmci9rS0ncf5/CnFSzKMDlOMexG0vmuSeYiWXfc70Tbmbt/ow1Px1t6wW2Q35\nie2bBZ35nnCfu+2JxZpdo+8a1FPxzO9u1x5laE+RIHQy8LiEoLBmKwrX7JKsCAs9\noRwgs2kCgYEA4IMCP0RjFYgj8Fzy4GqToj9cCB+i6mCsRO8lEXR8AjmltEGNbz+K\nnQ2zliAIG4q8P0lqHSMDaA8H2ArRG5Vj3rkEIVKBTFr7ngp+UnN9tiHEy8Mcth+r\nuBKg0lbIurgi8idjgAZKbUPoXLcKKQ5iQutAR2IlxRbQFzKPlk5pjUsCgYEA+dO7\ni9AMH4xncvIcmOzDfsBrzK9Ll15GOcB1u9p9RagGKA6w0Rdz1iRQqAJetcqFC7+r\nF1bGDceITTL87V/r04jM/JPQ49XVZIayenrI5rU2QpmLPKG+w8x1Obt3HOQb8oRv\nJMfsUtH5Wk920VRDow303CBp8U4g/E123fdMh/cCgYBuM8Bhn8bnJclGTcmmIIpR\nJLqe/jBwzX0h5SUT2VKZoQRWY6ryBYWbq8MQGK8CHepjQj0FCk+8v0wBXuXfnUfF\nZpnBZYc0HKDPpaT2AdyeDxtTTXWFbCxVEUfBl3m2NXZp2K29hNj5o1CmWe5x0q6m\n3GTT5ThW8ui3ykiy5dBn2wKBgDbhoZikOpWPpYYl08xwbr3gjY3okGWPS0QSmIqN\nA+oScE/KcmNskIDhd2qBIscy1ylukKpO4LFUPQgghFmtMcRFkCqIWmJCrl8oC/tG\nD+5GrsXQrzrBmYOv3ayyFwecwNr05umglbTX9bw2KrbvmPAv97OH114wOKTUa6F1\nWzWfAoGAasvUsT79g6BFLX5EI2wSi3LkYpkMKSuoI9ahwEnWrrYOHJS9ndqgJ62D\npIw1oI9vvZPxIA4j8qVeFi2Ks1VLwfXjCXZX/gXqKnDaVEDZPNsT/kaarO0OhaGv\noeeBTo3COjmZI1js3A0i3RiQtYsR8aRSCvS9ebaicGMXyTmECm0=\n-----END RSA PRIVATE KEY-----\n'
+* private_key_scanner_10001 = <cryptography.hazmat.backends.openssl.rsa._RSAPrivateKey object at 0x000002271D3D7A00>
 * bool(server_info_dict['server_private_key_base64'] == private_key_scanner_10001) = False
 image_signed_hash_manifest_daf
 
 | scanner_id | ballot_id |                          image_data_hex                          |                        image_hash_digest                         |                                 signature_base64                                 |
 | ---------: | --------: | ---------------------------------------------------------------: | ---------------------------------------------------------------: | -------------------------------------------------------------------------------: |
-|      10001 |     50001 | 60e15dbe45a6c1547df0230796bcd21cd015ca884c53a2be49f27285cda562ae | ef2e94d7572ec788dee0d3a05ea9f401c373cd1fe3af15786ccfe68afaa9d0c8 | hfPQapPRafjw0loOsfH+I9RBHjIJuxGYfY7kpU0..I1A5oBEnHInOPGfHkUibYImuvIfJxS9N+p5ug== |
-|      10001 |     50002 | a50c2fe5b1c5215986423d4570912faa958c35fa4c69b59c3af8adbac5b410db | 903b2954b3f7087058fe186946ec34584c1ffece116b555a4d2efe25e3779b41 | Q8jPqNwYxGVKtETpzQ5CUgUObZxgHbDb5HpDfRa..sAlxrtvPxWaLP3CSuVUflwoUQKqfHf12qR2kg== |
-|      10001 |     50003 | 872698d944a656a128c16b7e700d7a1bbc58530cd8c29cda648a4b297792cbc1 | 7c589544cac01aef372827f3358e2403a82bf2185801bba4095b716d387201b5 | Gdyv0C1FIK7XN6IGnjCrNcW2cnWNAqVDljIMu6K../5TRhI1G2xd0hM5i94gt+0/Afh5ExivS5fBeQ== |
-|      10001 |     50004 | 6b3adf7e960ad543a5e2e5bde0ef57fed0daf68734642b2ad8f195abd90fa420 | 3b7e63a4de154c99998a10a2b223477d7cbb1abfcecd4c8241e2959c4cf3d286 | IH8qgkrWv9/TEZFXdUxMaHFcDGV69p+xIidG93v..ZHb/S7TUgvI/3PE7eVHZuL0CyFEUUCA7kBGLg== |
-|      10001 |     50005 | 6fc4814ced225f2a54c35b8415e99f7e3a2e019d09d64ec8d9e1d2b7f0207c8a | 57691957abcf4913aabd730d5e020ee40c35381b2766b86e8482ef3fb8328085 | OsddVxqmFcRv3K+xtsFPG6vJmg9K0XskfAoTHs7..SeuYa5EZm7JRVFgpXkkeKFLBcRs35o1a1jb8w== |
+|      10001 |     50001 | 41a627c41845efd584753d9d5e8481c17c2c2c943ae9d9cc2b3f9c095d983fbe | 8225811a7cb4a6ce3284d30ecc607be011d1c9e6d4d726c7143eb78a1f58cfcc | x7Atu/BXnwUs9/NErimM65Zo4KwXhSBXneEAeOY..cXICjHplKwDHjnZ8Ss6sLHlY11Q2rHhh/YlMQ== |
+|      10001 |     50002 | 5be3cecc261202ade01588ea25fd4168dde65c56fe3b5993a9673eba06f7c222 | cc0939a36623d1ea94915981e4b51b8095e808bcadfb8cbd8042db922d00cc2d | r8dyZYfNKeEI2YwHq2vyl0GsGY2zBMJQAxbCmAF..uASVUFufFTSF5Fw7pkK/UajAk5ahrLeVzYLpQ== |
+|      10001 |     50003 | 91764a10388528d0c4ae01525fc745301355731187cb29165b18daed9916abec | 220707306621a3f043d094444cb5585a5e77c03aa80448b8593b9d0a2195ab4c | CTVVYhmG/cR9pAJAsLtyEbDInbfKjrWiFaXO0UP..vyw5zRI6l3hx78yFQp5NMJzJIwJ18/DQEHkUA== |
+|      10001 |     50004 | 5c307207ec93ccecb1444f2f369af06096bbb975aa49046ee5395f267f84ab36 | 711b5a034bab437624dfca51a78011f2f298b83a07db1f0c9f767bf25fdb109c | Ara7XMSo1R84EEjoKqPxBEvzxvGfKn5Tj20yWmc..jzJN/Jco7ouWaWu7sq3l3MJvvAVtZ7O9UxJgQ== |
+|      10001 |     50005 | 3e179ceb3d5cc24036a43c1e0c36e9371cb6a282844608ba92a9c9e39c23b797 | 0e4435848c5b1eafe47557548c31a6d52ecb118c894ed34a8352741bada805a3 | l+h4tC6+avb6B9omzqu/Ok3BUTOl7JLHK6keC6r..dZgOCCt3JHo5zhEwt9zTTcmu1O8h3Zegot/kQ== |
 |        ... |       ... |                                                              ... |                                                              ... |                                                                              ... |
-|      10001 |     50016 | a4d5bbb6b1399ce73a1441e07277a932e1e1f23f37199cfd85952678cda2fe14 | 342c250baa43b7ff683bc67bc5ca9477b934df98675c96d81d8b556415e1feea | T4IZBaVcl/7Mdpa6EuROXD+Q/Ex9+lz6cwVO8At..Kb1Ph84TIwoNsEgUTIj3YHJTnsZl4FCSHo3aA== |
-|      10001 |     50017 | 5d4f82e5ba133b877a54f497fb7ac65c91fc4b1f1475604503b0a1f40b6952d0 | 639f8b72540b96d0012504bc5aae2bb6dd0934808a77cdaa38946397b2674f90 | EpUdquRWzPUMww/azGeC8JC7odBGJMA001q6Hwe..QB2qzC44XhlaDstPweBmbeY0kS8R2GJmBZE1A== |
-|      10001 |     50018 | 8df7886f02008f9c4297589e4a809114b78e2d5700e619394715e4cb02d86869 | 81b4bc9ebf983256e7e890f089908536fb3bf50ad4564a0f83dbe74f741dc8ce | W2N4HteLuFQU5PMfYMU5tpfVY0ETNSzXMl1Vhyk..HkmuxBolyBMBq86wqO57ESDvg86XSfmrlIfew== |
-|      10001 |     50019 | c1538bc027d1ff127b8939405607903b749dafbb1cf01f0d7aab868bc9baf83d | a532efcac890ab675b049406d2f82dae0ef9d3991089ba52719d1cb4f2bc72be | po3kCf8ffJ/quVJNHujq+2fThwORls+ncoK8kCU..Fd5w7mCDstMR1ECoq9QAhPX6W1lHYFvVYTzMg== |
-|      10001 |     50020 | 7a5592774408f33ae303466db8871173f588914124ae5ea507131b1e3b3f94ad | 64ef9490130ad221e4b74fd6451230cf79cf4fd2fb00151eff5aec4770fe801c | tKP0iS6AZ7fJCAa3FfwtjFciGm0RaXhAzYbxTKk..ANN+D1oQLAcL8tuikNSmlb93d0wmxYMw72Rog== |
+|      10001 |     50016 | 2377ac4d8d2aa7a95d28af396396d7918331bf57520a0fafc5846690dc86b8d0 | 1cab7271ea4e98cf3290312e8adb0a113e297fc99f883833a8fbab62d5fe4105 | GzUx5Vj65EYle4TPHDqBHW7Gfvn5Bx7rIVL0Ltd..H9limDMDo2m8GuRd/QtTXrpKfU0flzQFrBWLA== |
+|      10001 |     50017 | 840490b115abb2a6c0c73e26a42bab6d15e3df2131f8cb0eaa168b4712599ecd | c200eb627d64364f8ef9814b92f32c645a1ef3956bcb8208ff127b2264790122 | ejBD2yt4IsyHrG2ty1mWP8n/RNI4KSSavq9PPpN..Bs3UxcI1GZzgAXaG7yChPypXDK5pmHwB0jr6Q== |
+|      10001 |     50018 | d0a0eea47dfef8e36c68f878e766b8b7dcff80ed9645baf4642a75c3f95657e9 | 8b2e28731d5b9905ee72d6444d68a6d0d00c2e23f821a58ae93778cc9b9c190b | UU8gK5l0XeX2TRuegitsJWjfQV0VPWwtYcRLIXF..e+b0E+AR7rH2APR1jfXs7rG0aJLnuSdeeCkdg== |
+|      10001 |     50019 | dbfbd0c7acb3fc0e6b104090ff65dfea89e8c85dab2436494f1f70d4252fb680 | 5ee5dadac4551bae74d5118c9896b5b363c4cc306290b932589215d22229c35f | sHqp1ffLZhWvHuuHcUeD4aiDNk+jm//R448da/E..cTxt4cDyGQlktzmGsqVsnl7mGCLO8+bBHNPCA== |
+|      10001 |     50020 | 323f168d61037d71b0fabeac656c71c28ea40cffedb20dc7b1649ab612263ef3 | 4e2f321d39ad25b5ba28731d33dd308ca31a20f10f7a494ff85eb8241d4ee726 | oxivJ/+H4xM/yFWGsolnPuxwGksTgxDcFLyv62k..Xz7q6mZ0j3oG1CcCyKrdE3pMM6wbZ2/Kao80Q== |
 
-\[20 rows x 5 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 5 cols; keyfield=; 0 keys ] (Daf)
 
 
 
@@ -699,19 +723,19 @@ image_signed_hash_manifest_daf
 
 | scanner_id | ballot_id |                          image_data_hex                          |                        image_hash_digest                         |                                 signature_base64                                 |
 | ---------: | --------: | ---------------------------------------------------------------: | ---------------------------------------------------------------: | -------------------------------------------------------------------------------: |
-|      10001 |     50001 | 60e15dbe45a6c1547df0230796bcd21cd015ca884c53a2be49f27285cda562ae | ef2e94d7572ec788dee0d3a05ea9f401c373cd1fe3af15786ccfe68afaa9d0c8 | hfPQapPRafjw0loOsfH+I9RBHjIJuxGYfY7kpU0..I1A5oBEnHInOPGfHkUibYImuvIfJxS9N+p5ug== |
-|      10001 |     50002 | a50c2fe5b1c5215986423d4570912faa958c35fa4c69b59c3af8adbac5b410db | 903b2954b3f7087058fe186946ec34584c1ffece116b555a4d2efe25e3779b41 | Q8jPqNwYxGVKtETpzQ5CUgUObZxgHbDb5HpDfRa..sAlxrtvPxWaLP3CSuVUflwoUQKqfHf12qR2kg== |
-|      10001 |     50003 | 872698d944a656a128c16b7e700d7a1bbc58530cd8c29cda648a4b297792cbc1 | 7c589544cac01aef372827f3358e2403a82bf2185801bba4095b716d387201b5 | Gdyv0C1FIK7XN6IGnjCrNcW2cnWNAqVDljIMu6K../5TRhI1G2xd0hM5i94gt+0/Afh5ExivS5fBeQ== |
-|      10001 |     50004 | 6b3adf7e960ad543a5e2e5bde0ef57fed0daf68734642b2ad8f195abd90fa420 | 3b7e63a4de154c99998a10a2b223477d7cbb1abfcecd4c8241e2959c4cf3d286 | IH8qgkrWv9/TEZFXdUxMaHFcDGV69p+xIidG93v..ZHb/S7TUgvI/3PE7eVHZuL0CyFEUUCA7kBGLg== |
-|      10001 |     50005 | 6fc4814ced225f2a54c35b8415e99f7e3a2e019d09d64ec8d9e1d2b7f0207c8a | 57691957abcf4913aabd730d5e020ee40c35381b2766b86e8482ef3fb8328085 | OsddVxqmFcRv3K+xtsFPG6vJmg9K0XskfAoTHs7..SeuYa5EZm7JRVFgpXkkeKFLBcRs35o1a1jb8w== |
+|      10001 |     50001 | 41a627c41845efd584753d9d5e8481c17c2c2c943ae9d9cc2b3f9c095d983fbe | 8225811a7cb4a6ce3284d30ecc607be011d1c9e6d4d726c7143eb78a1f58cfcc | x7Atu/BXnwUs9/NErimM65Zo4KwXhSBXneEAeOY..cXICjHplKwDHjnZ8Ss6sLHlY11Q2rHhh/YlMQ== |
+|      10001 |     50002 | 5be3cecc261202ade01588ea25fd4168dde65c56fe3b5993a9673eba06f7c222 | cc0939a36623d1ea94915981e4b51b8095e808bcadfb8cbd8042db922d00cc2d | r8dyZYfNKeEI2YwHq2vyl0GsGY2zBMJQAxbCmAF..uASVUFufFTSF5Fw7pkK/UajAk5ahrLeVzYLpQ== |
+|      10001 |     50003 | 91764a10388528d0c4ae01525fc745301355731187cb29165b18daed9916abec | 220707306621a3f043d094444cb5585a5e77c03aa80448b8593b9d0a2195ab4c | CTVVYhmG/cR9pAJAsLtyEbDInbfKjrWiFaXO0UP..vyw5zRI6l3hx78yFQp5NMJzJIwJ18/DQEHkUA== |
+|      10001 |     50004 | 5c307207ec93ccecb1444f2f369af06096bbb975aa49046ee5395f267f84ab36 | 711b5a034bab437624dfca51a78011f2f298b83a07db1f0c9f767bf25fdb109c | Ara7XMSo1R84EEjoKqPxBEvzxvGfKn5Tj20yWmc..jzJN/Jco7ouWaWu7sq3l3MJvvAVtZ7O9UxJgQ== |
+|      10001 |     50005 | 3e179ceb3d5cc24036a43c1e0c36e9371cb6a282844608ba92a9c9e39c23b797 | 0e4435848c5b1eafe47557548c31a6d52ecb118c894ed34a8352741bada805a3 | l+h4tC6+avb6B9omzqu/Ok3BUTOl7JLHK6keC6r..dZgOCCt3JHo5zhEwt9zTTcmu1O8h3Zegot/kQ== |
 |        ... |       ... |                                                              ... |                                                              ... |                                                                              ... |
-|      10001 |     50016 | a4d5bbb6b1399ce73a1441e07277a932e1e1f23f37199cfd85952678cda2fe14 | 342c250baa43b7ff683bc67bc5ca9477b934df98675c96d81d8b556415e1feea | T4IZBaVcl/7Mdpa6EuROXD+Q/Ex9+lz6cwVO8At..Kb1Ph84TIwoNsEgUTIj3YHJTnsZl4FCSHo3aA== |
-|      10001 |     50017 | 5d4f82e5ba133b877a54f497fb7ac65c91fc4b1f1475604503b0a1f40b6952d0 | 639f8b72540b96d0012504bc5aae2bb6dd0934808a77cdaa38946397b2674f90 | EpUdquRWzPUMww/azGeC8JC7odBGJMA001q6Hwe..QB2qzC44XhlaDstPweBmbeY0kS8R2GJmBZE1A== |
-|      10001 |     50018 | 8df7886f02008f9c4297589e4a809114b78e2d5700e619394715e4cb02d86869 | 81b4bc9ebf983256e7e890f089908536fb3bf50ad4564a0f83dbe74f741dc8ce | W2N4HteLuFQU5PMfYMU5tpfVY0ETNSzXMl1Vhyk..HkmuxBolyBMBq86wqO57ESDvg86XSfmrlIfew== |
-|      10001 |     50019 | c1538bc027d1ff127b8939405607903b749dafbb1cf01f0d7aab868bc9baf83d | a532efcac890ab675b049406d2f82dae0ef9d3991089ba52719d1cb4f2bc72be | po3kCf8ffJ/quVJNHujq+2fThwORls+ncoK8kCU..Fd5w7mCDstMR1ECoq9QAhPX6W1lHYFvVYTzMg== |
-|      10001 |     50020 | 7a5592774408f33ae303466db8871173f588914124ae5ea507131b1e3b3f94ad | 64ef9490130ad221e4b74fd6451230cf79cf4fd2fb00151eff5aec4770fe801c | tKP0iS6AZ7fJCAa3FfwtjFciGm0RaXhAzYbxTKk..ANN+D1oQLAcL8tuikNSmlb93d0wmxYMw72Rog== |
+|      10001 |     50016 | 2377ac4d8d2aa7a95d28af396396d7918331bf57520a0fafc5846690dc86b8d0 | 1cab7271ea4e98cf3290312e8adb0a113e297fc99f883833a8fbab62d5fe4105 | GzUx5Vj65EYle4TPHDqBHW7Gfvn5Bx7rIVL0Ltd..H9limDMDo2m8GuRd/QtTXrpKfU0flzQFrBWLA== |
+|      10001 |     50017 | 840490b115abb2a6c0c73e26a42bab6d15e3df2131f8cb0eaa168b4712599ecd | c200eb627d64364f8ef9814b92f32c645a1ef3956bcb8208ff127b2264790122 | ejBD2yt4IsyHrG2ty1mWP8n/RNI4KSSavq9PPpN..Bs3UxcI1GZzgAXaG7yChPypXDK5pmHwB0jr6Q== |
+|      10001 |     50018 | d0a0eea47dfef8e36c68f878e766b8b7dcff80ed9645baf4642a75c3f95657e9 | 8b2e28731d5b9905ee72d6444d68a6d0d00c2e23f821a58ae93778cc9b9c190b | UU8gK5l0XeX2TRuegitsJWjfQV0VPWwtYcRLIXF..e+b0E+AR7rH2APR1jfXs7rG0aJLnuSdeeCkdg== |
+|      10001 |     50019 | dbfbd0c7acb3fc0e6b104090ff65dfea89e8c85dab2436494f1f70d4252fb680 | 5ee5dadac4551bae74d5118c9896b5b363c4cc306290b932589215d22229c35f | sHqp1ffLZhWvHuuHcUeD4aiDNk+jm//R448da/E..cTxt4cDyGQlktzmGsqVsnl7mGCLO8+bBHNPCA== |
+|      10001 |     50020 | 323f168d61037d71b0fabeac656c71c28ea40cffedb20dc7b1649ab612263ef3 | 4e2f321d39ad25b5ba28731d33dd308ca31a20f10f7a494ff85eb8241d4ee726 | oxivJ/+H4xM/yFWGsolnPuxwGksTgxDcFLyv62k..Xz7q6mZ0j3oG1CcCyKrdE3pMM6wbZ2/Kao80Q== |
 
-\[20 rows x 5 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 5 cols; keyfield=; 0 keys ] (Daf)
 
 
 
@@ -752,19 +776,19 @@ hacked image_signed_hash_manifest_daf
 
 | scanner_id | ballot_id |                          image_data_hex                          |                        image_hash_digest                         |                                 signature_base64                                 |
 | ---------: | --------: | ---------------------------------------------------------------: | ---------------------------------------------------------------: | -------------------------------------------------------------------------------: |
-|      10001 |     50001 | 60e15dbe45a6c1547df0230796bcd21cd015ca884c53a2be49f27285cda562ae | ef2e94d7572ec788dee0d3a05ea9f401c373cd1fe3af15786ccfe68afaa9d0c8 | hfPQapPRafjw0loOsfH+I9RBHjIJuxGYfY7kpU0..I1A5oBEnHInOPGfHkUibYImuvIfJxS9N+p5ug== |
-|      10001 |     50002 | 461e95459b55274d40edcdff59cd658c765bfa13a107a749b053e9f8ea7ef383 | 903b2954b3f7087058fe186946ec34584c1ffece116b555a4d2efe25e3779b41 | Q8jPqNwYxGVKtETpzQ5CUgUObZxgHbDb5HpDfRa..sAlxrtvPxWaLP3CSuVUflwoUQKqfHf12qR2kg== |
-|      10001 |     50003 | 811128acec0165872bde5fbd6559eb455a377058b4359fdcae4b20516c1b0341 | 35d287a23cf57170916dacfbfc2672daf3fa5d700606ea6af451fae4e528d538 | Gdyv0C1FIK7XN6IGnjCrNcW2cnWNAqVDljIMu6K../5TRhI1G2xd0hM5i94gt+0/Afh5ExivS5fBeQ== |
-|      10001 |     50004 | 6b3adf7e960ad543a5e2e5bde0ef57fed0daf68734642b2ad8f195abd90fa420 | 3b7e63a4de154c99998a10a2b223477d7cbb1abfcecd4c8241e2959c4cf3d286 | IH8qgkrWv9/TEZFXdUxMaHFcDGV69p+xIidG93v..ZHb/S7TUgvI/3PE7eVHZuL0CyFEUUCA7kBGLg== |
-|      10001 |     50005 | 6fc4814ced225f2a54c35b8415e99f7e3a2e019d09d64ec8d9e1d2b7f0207c8a | 57691957abcf4913aabd730d5e020ee40c35381b2766b86e8482ef3fb8328085 | OsddVxqmFcRv3K+xtsFPG6vJmg9K0XskfAoTHs7..SeuYa5EZm7JRVFgpXkkeKFLBcRs35o1a1jb8w== |
+|      10001 |     50001 | 41a627c41845efd584753d9d5e8481c17c2c2c943ae9d9cc2b3f9c095d983fbe | 8225811a7cb4a6ce3284d30ecc607be011d1c9e6d4d726c7143eb78a1f58cfcc | x7Atu/BXnwUs9/NErimM65Zo4KwXhSBXneEAeOY..cXICjHplKwDHjnZ8Ss6sLHlY11Q2rHhh/YlMQ== |
+|      10001 |     50002 | 17d95460ba51cd7479293cb113e3d52035a52fc1b1980cfe6da052d9df57bbd1 | cc0939a36623d1ea94915981e4b51b8095e808bcadfb8cbd8042db922d00cc2d | r8dyZYfNKeEI2YwHq2vyl0GsGY2zBMJQAxbCmAF..uASVUFufFTSF5Fw7pkK/UajAk5ahrLeVzYLpQ== |
+|      10001 |     50003 | 97845ff068aea910b4055a26c3caac101976a076d8ad1bcbb48474c874defbda | eb3f6f14a11781eca52206c160b302c84bf43020da45e7a77f07d6908877e292 | CTVVYhmG/cR9pAJAsLtyEbDInbfKjrWiFaXO0UP..vyw5zRI6l3hx78yFQp5NMJzJIwJ18/DQEHkUA== |
+|      10001 |     50004 | 5c307207ec93ccecb1444f2f369af06096bbb975aa49046ee5395f267f84ab36 | 711b5a034bab437624dfca51a78011f2f298b83a07db1f0c9f767bf25fdb109c | Ara7XMSo1R84EEjoKqPxBEvzxvGfKn5Tj20yWmc..jzJN/Jco7ouWaWu7sq3l3MJvvAVtZ7O9UxJgQ== |
+|      10001 |     50005 | 3e179ceb3d5cc24036a43c1e0c36e9371cb6a282844608ba92a9c9e39c23b797 | 0e4435848c5b1eafe47557548c31a6d52ecb118c894ed34a8352741bada805a3 | l+h4tC6+avb6B9omzqu/Ok3BUTOl7JLHK6keC6r..dZgOCCt3JHo5zhEwt9zTTcmu1O8h3Zegot/kQ== |
 |        ... |       ... |                                                              ... |                                                              ... |                                                                              ... |
-|      10001 |     50016 | a4d5bbb6b1399ce73a1441e07277a932e1e1f23f37199cfd85952678cda2fe14 | 342c250baa43b7ff683bc67bc5ca9477b934df98675c96d81d8b556415e1feea | T4IZBaVcl/7Mdpa6EuROXD+Q/Ex9+lz6cwVO8At..Kb1Ph84TIwoNsEgUTIj3YHJTnsZl4FCSHo3aA== |
-|      10001 |     50017 | 5d4f82e5ba133b877a54f497fb7ac65c91fc4b1f1475604503b0a1f40b6952d0 | 639f8b72540b96d0012504bc5aae2bb6dd0934808a77cdaa38946397b2674f90 | EpUdquRWzPUMww/azGeC8JC7odBGJMA001q6Hwe..QB2qzC44XhlaDstPweBmbeY0kS8R2GJmBZE1A== |
-|      10001 |     50018 | 8df7886f02008f9c4297589e4a809114b78e2d5700e619394715e4cb02d86869 | 81b4bc9ebf983256e7e890f089908536fb3bf50ad4564a0f83dbe74f741dc8ce | W2N4HteLuFQU5PMfYMU5tpfVY0ETNSzXMl1Vhyk..HkmuxBolyBMBq86wqO57ESDvg86XSfmrlIfew== |
-|      10001 |     50019 | c1538bc027d1ff127b8939405607903b749dafbb1cf01f0d7aab868bc9baf83d | a532efcac890ab675b049406d2f82dae0ef9d3991089ba52719d1cb4f2bc72be | po3kCf8ffJ/quVJNHujq+2fThwORls+ncoK8kCU..Fd5w7mCDstMR1ECoq9QAhPX6W1lHYFvVYTzMg== |
-|      10001 |     50020 | 7a5592774408f33ae303466db8871173f588914124ae5ea507131b1e3b3f94ad | 64ef9490130ad221e4b74fd6451230cf79cf4fd2fb00151eff5aec4770fe801c | tKP0iS6AZ7fJCAa3FfwtjFciGm0RaXhAzYbxTKk..ANN+D1oQLAcL8tuikNSmlb93d0wmxYMw72Rog== |
+|      10001 |     50016 | 2377ac4d8d2aa7a95d28af396396d7918331bf57520a0fafc5846690dc86b8d0 | 1cab7271ea4e98cf3290312e8adb0a113e297fc99f883833a8fbab62d5fe4105 | GzUx5Vj65EYle4TPHDqBHW7Gfvn5Bx7rIVL0Ltd..H9limDMDo2m8GuRd/QtTXrpKfU0flzQFrBWLA== |
+|      10001 |     50017 | 840490b115abb2a6c0c73e26a42bab6d15e3df2131f8cb0eaa168b4712599ecd | c200eb627d64364f8ef9814b92f32c645a1ef3956bcb8208ff127b2264790122 | ejBD2yt4IsyHrG2ty1mWP8n/RNI4KSSavq9PPpN..Bs3UxcI1GZzgAXaG7yChPypXDK5pmHwB0jr6Q== |
+|      10001 |     50018 | d0a0eea47dfef8e36c68f878e766b8b7dcff80ed9645baf4642a75c3f95657e9 | 8b2e28731d5b9905ee72d6444d68a6d0d00c2e23f821a58ae93778cc9b9c190b | UU8gK5l0XeX2TRuegitsJWjfQV0VPWwtYcRLIXF..e+b0E+AR7rH2APR1jfXs7rG0aJLnuSdeeCkdg== |
+|      10001 |     50019 | dbfbd0c7acb3fc0e6b104090ff65dfea89e8c85dab2436494f1f70d4252fb680 | 5ee5dadac4551bae74d5118c9896b5b363c4cc306290b932589215d22229c35f | sHqp1ffLZhWvHuuHcUeD4aiDNk+jm//R448da/E..cTxt4cDyGQlktzmGsqVsnl7mGCLO8+bBHNPCA== |
+|      10001 |     50020 | 323f168d61037d71b0fabeac656c71c28ea40cffedb20dc7b1649ab612263ef3 | 4e2f321d39ad25b5ba28731d33dd308ca31a20f10f7a494ff85eb8241d4ee726 | oxivJ/+H4xM/yFWGsolnPuxwGksTgxDcFLyv62k..Xz7q6mZ0j3oG1CcCyKrdE3pMM6wbZ2/Kao80Q== |
 
-\[20 rows x 5 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 5 cols; keyfield=; 0 keys ] (Daf)
 
 
 
@@ -786,9 +810,9 @@ to check the images for consistency, we need to be able to recover the scanner's
 
 
 * public_key_record['server_id'] = '10001'
-* public_key_record['server_public_key_cbor_base64'] = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUF0MzJCdEZLQXMvTTlrcU1KL2F4Uwp0aEM3eldzOStXc1RXODRBcU8wVFdZSEt4aTliNGtNL2lwM2dTYmwxTGV1Wnc4ZGtXcE1Eb3FLU3lxWm9rMFN6CmFjS0ZsOVNjYW1xRS9KTUpqam5NR0NiaEkrZ3lhdnQvWkRmSS9NdlFNRFBiM3pHbWE0VlRSSzZ1ZjdJQlFMTk0KNko1b01xN3g5Qm1qbWpnM3FzU1kraTlIc3BsU0pWbVBqMU96QXg4dHVxeXdHeU5ZU3dvcUZNbW1UbExFdSt1MQpLaElLbEJGMU5wWTVha0x5b0dyeXpIQzVQdHBJNnR3OTl5aCtZUDBJWE5KL1RJcTA5Y2xDbi92QlUrdkNldVhYCmtFZGNCSDAvNEV3alhYeDJ4b210c0ppWGFMMFNrYkFMaHMwYnl5VVVWaXczV04zVk1wWEtvWUtIVzZpWEtUNWYKYndJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
-* public_key_record['nonce_base64'] = '0st6r/AFJuamto6mgFSlJVCs+MHxhlZfRE0H1yUFFCs='
-* public_key_record['signed_nonce_base64'] = 'CVU7QMe9fDM6V5CF3Fo3E85lAj5mX+mtN+V05+//QrlkWlqilFPHguFoYZZpafmG9cUul97lVdT7eW3WtXwtQ8o1vmBK8fIYITTAzvdnkuAsEu2WK4VwwWuLaiaD2LavqyM93phpQqOxZJt7JrK80PZcabZJuxbkMJY+hOJ1zu4btfQH3hWY6gztIp+rXx2XeiqbXoYtVRJ4RnVMt6O7b8xLa6UwLVwS6kOqYF9+mFgwv/ZeX/CwWLFKRgtNkJ7YU81Tbl78Yin2GX5WIjfKBtRcPHMiqLYU5MrF2iRBsOvZXuNQHzDsSzEZA5eNTixC08ujZj5o9BX1r7WezEyQbA=='
+* public_key_record['server_public_key_cbor_base64'] = 'WQHDLS0tLS1CRUdJTiBQVUJMSUMgS0VZLS0tLS0KTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUEyeGtkcExQbFFJMHUzYXRKVm9DTgp2citrZ0xBU3JabFpJckJ3OHlVZFczUEFXMjlNQ1JYeGE0ZXFUYlpzcDFCaEtuR3ZKTlQvYVNIenB5RmRzTlFtCnNESHRPTmFNU2tTQzBUVmlGdHhtSmNZTzdiUm82UEpBVUlMdTVzUzBYcXhSZmxZbHpITjFtSkhhSXdzMUhRZmcKNmIvSjVhYldzdUNZYUMrYVRScktiWUVLcDlHeURwR3ZSYWcrNXhvVlJaWno1VHhFRmlhT0JaRktyOXE1TWdNSApuc0FMR0lLVFF2TUdpR0dUS00yUXZiVFQ2alg4Znc2Y2F4NGpzMkNMVWhPdzhiRC9BMWNUK2ZTWUJQd0llVDI4Cm16VCt3RzNlbUs4Qm5aZE9BTkpkemQveTRXRG1KclcySWNBdVFEbFJZOU84Q1NoVlpTTnRwNnBkbG5mSG9KM2cKWFFJREFRQUIKLS0tLS1FTkQgUFVCTElDIEtFWS0tLS0tCg=='
+* public_key_record['nonce_base64'] = '6aeH+ktvfPNfldzUiAYN6w82iUVmsNAJ8yBqpjs16yg='
+* public_key_record['signed_nonce_base64'] = 'jSKWal2a/pkPn7TN40Ue0fAScp0qrItLfCyySjYOKSSrF6uSXv80laads7Tj0oB1q/n58xcyH2hga5f2dD72peNXJjrsr/GmdJMxZG5PvoZoI4I4sNk+1U71K+n99fuvUHQMvFrvH/qf8zLRFwfrN1YdbvBFeDNK78P/pJ4YAm1qhuyhrDB4HKiCUqw6xgg1pVeLwa+dRb8oQNshNR7Aouc1Lsox3KWMprMRsCFOahLTBVfH6LPtqaIxaw8cuSwtXz4BjVfPdTviqwXRrLQCSCaXXyPM2u0kU1HG4tdXBPGLjApv+IVhf3JScBB/qtEHpAL8PSfkvNQg2vrXyDloOg=='
 
 ## Check Images for consistency -- create independent hashes and signatures.
 
@@ -802,7 +826,7 @@ This process would be repeated for each image from each scanner.
 
 ```python
     # create a new table with three new columns:
-    calc_hash_manifest_daf = daf.Pydf(cols=image_signed_hash_manifest_daf.columns() + 
+    calc_hash_manifest_daf = Daf(cols=image_signed_hash_manifest_daf.columns() + 
                                 ['calc_image_hash_digest', 'is_hash_verified', 'is_signature_verified'])
     
     for image_signed_hash_manifest_da in image_signed_hash_manifest_daf:
@@ -835,18 +859,18 @@ calc_hash_manifest
 
 | scanner_id | ballot_id |                          image_data_hex                          |                        image_hash_digest                         |                                 signature_base64                                 |                      calc_image_hash_digest                      | is_hash_verified | is_signature_verified |
 | ---------: | --------: | ---------------------------------------------------------------: | ---------------------------------------------------------------: | -------------------------------------------------------------------------------: | ---------------------------------------------------------------: | ---------------: | --------------------: |
-|      10001 |     50001 | 60e15dbe45a6c1547df0230796bcd21cd015ca884c53a2be49f27285cda562ae | ef2e94d7572ec788dee0d3a05ea9f401c373cd1fe3af15786ccfe68afaa9d0c8 | hfPQapPRafjw0loOsfH+I9RBHjIJuxGYfY7kpU0..I1A5oBEnHInOPGfHkUibYImuvIfJxS9N+p5ug== | e8d491b0e351c983de837455c4702fc261a2f60587e0641cd6c889cf75a3d358 |            False |                 False |
-|      10001 |     50002 | 461e95459b55274d40edcdff59cd658c765bfa13a107a749b053e9f8ea7ef383 | 903b2954b3f7087058fe186946ec34584c1ffece116b555a4d2efe25e3779b41 | Q8jPqNwYxGVKtETpzQ5CUgUObZxgHbDb5HpDfRa..sAlxrtvPxWaLP3CSuVUflwoUQKqfHf12qR2kg== | 2a2623645be8145796beb0b483c8093823dc2a0603e4082522b3c381ba70895d |            False |                 False |
-|      10001 |     50003 | 811128acec0165872bde5fbd6559eb455a377058b4359fdcae4b20516c1b0341 | 35d287a23cf57170916dacfbfc2672daf3fa5d700606ea6af451fae4e528d538 | Gdyv0C1FIK7XN6IGnjCrNcW2cnWNAqVDljIMu6K../5TRhI1G2xd0hM5i94gt+0/Afh5ExivS5fBeQ== | eedb18290e47c921b64b1984ab4917e5eaa1b45b093d4412fc99ee7cc9849a45 |            False |                 False |
-|      10001 |     50004 | 6b3adf7e960ad543a5e2e5bde0ef57fed0daf68734642b2ad8f195abd90fa420 | 3b7e63a4de154c99998a10a2b223477d7cbb1abfcecd4c8241e2959c4cf3d286 | IH8qgkrWv9/TEZFXdUxMaHFcDGV69p+xIidG93v..ZHb/S7TUgvI/3PE7eVHZuL0CyFEUUCA7kBGLg== | e3f137ab174e7a0a9fba8fec7acd50d95f27ae67f6040b7749037808a5ed42bf |            False |                 False |
-|      10001 |     50005 | 6fc4814ced225f2a54c35b8415e99f7e3a2e019d09d64ec8d9e1d2b7f0207c8a | 57691957abcf4913aabd730d5e020ee40c35381b2766b86e8482ef3fb8328085 | OsddVxqmFcRv3K+xtsFPG6vJmg9K0XskfAoTHs7..SeuYa5EZm7JRVFgpXkkeKFLBcRs35o1a1jb8w== | 4be9d5093be32b8711c30dd3e0a979e29fcdb497863f8b6872ddc9af7df84623 |            False |                 False |
+|      10001 |     50001 | 41a627c41845efd584753d9d5e8481c17c2c2c943ae9d9cc2b3f9c095d983fbe | 8225811a7cb4a6ce3284d30ecc607be011d1c9e6d4d726c7143eb78a1f58cfcc | x7Atu/BXnwUs9/NErimM65Zo4KwXhSBXneEAeOY..cXICjHplKwDHjnZ8Ss6sLHlY11Q2rHhh/YlMQ== | 3f11d8831b76105e0d6f33783378a00a9e4e5efde54f76e82b25075a94e0dc6d |            False |                 False |
+|      10001 |     50002 | 17d95460ba51cd7479293cb113e3d52035a52fc1b1980cfe6da052d9df57bbd1 | cc0939a36623d1ea94915981e4b51b8095e808bcadfb8cbd8042db922d00cc2d | r8dyZYfNKeEI2YwHq2vyl0GsGY2zBMJQAxbCmAF..uASVUFufFTSF5Fw7pkK/UajAk5ahrLeVzYLpQ== | cce408377432ec19459a152b736e4db49415ebf82cb5857d65ce1e8fe0f8b38c |            False |                 False |
+|      10001 |     50003 | 97845ff068aea910b4055a26c3caac101976a076d8ad1bcbb48474c874defbda | eb3f6f14a11781eca52206c160b302c84bf43020da45e7a77f07d6908877e292 | CTVVYhmG/cR9pAJAsLtyEbDInbfKjrWiFaXO0UP..vyw5zRI6l3hx78yFQp5NMJzJIwJ18/DQEHkUA== | 73f39ce3fd663bebee27a18e24c4e49690616c39227dace634074f26fab01af9 |            False |                 False |
+|      10001 |     50004 | 5c307207ec93ccecb1444f2f369af06096bbb975aa49046ee5395f267f84ab36 | 711b5a034bab437624dfca51a78011f2f298b83a07db1f0c9f767bf25fdb109c | Ara7XMSo1R84EEjoKqPxBEvzxvGfKn5Tj20yWmc..jzJN/Jco7ouWaWu7sq3l3MJvvAVtZ7O9UxJgQ== | 084c86486782d0f4c65af946265b8341b168d82e613944290cd809927bff793e |            False |                 False |
+|      10001 |     50005 | 3e179ceb3d5cc24036a43c1e0c36e9371cb6a282844608ba92a9c9e39c23b797 | 0e4435848c5b1eafe47557548c31a6d52ecb118c894ed34a8352741bada805a3 | l+h4tC6+avb6B9omzqu/Ok3BUTOl7JLHK6keC6r..dZgOCCt3JHo5zhEwt9zTTcmu1O8h3Zegot/kQ== | 052b2e76d749766257fea41bbbe9bc089089e8bf88f74c1f66353f8841864dd4 |            False |                 False |
 |        ... |       ... |                                                              ... |                                                              ... |                                                                              ... |                                                              ... |              ... |                   ... |
-|      10001 |     50016 | a4d5bbb6b1399ce73a1441e07277a932e1e1f23f37199cfd85952678cda2fe14 | 342c250baa43b7ff683bc67bc5ca9477b934df98675c96d81d8b556415e1feea | T4IZBaVcl/7Mdpa6EuROXD+Q/Ex9+lz6cwVO8At..Kb1Ph84TIwoNsEgUTIj3YHJTnsZl4FCSHo3aA== | e970c51ef8882b943ae23b22f78a8f2a861ea7134fe60b8e3173faa5aab20ae6 |            False |                 False |
-|      10001 |     50017 | 5d4f82e5ba133b877a54f497fb7ac65c91fc4b1f1475604503b0a1f40b6952d0 | 639f8b72540b96d0012504bc5aae2bb6dd0934808a77cdaa38946397b2674f90 | EpUdquRWzPUMww/azGeC8JC7odBGJMA001q6Hwe..QB2qzC44XhlaDstPweBmbeY0kS8R2GJmBZE1A== | a095ef31b596f5d9f083f26bb4d730335bc6cbcca676283069eda055987f801d |            False |                 False |
-|      10001 |     50018 | 8df7886f02008f9c4297589e4a809114b78e2d5700e619394715e4cb02d86869 | 81b4bc9ebf983256e7e890f089908536fb3bf50ad4564a0f83dbe74f741dc8ce | W2N4HteLuFQU5PMfYMU5tpfVY0ETNSzXMl1Vhyk..HkmuxBolyBMBq86wqO57ESDvg86XSfmrlIfew== | 5d893235213a4bcbe134070cd003c81121605f21a8f2ef775afea9ac15a7e00f |            False |                 False |
-|      10001 |     50019 | c1538bc027d1ff127b8939405607903b749dafbb1cf01f0d7aab868bc9baf83d | a532efcac890ab675b049406d2f82dae0ef9d3991089ba52719d1cb4f2bc72be | po3kCf8ffJ/quVJNHujq+2fThwORls+ncoK8kCU..Fd5w7mCDstMR1ECoq9QAhPX6W1lHYFvVYTzMg== | da9209585ea077f01b5e810d9a36826ebc3dc250295101e96733e695536df316 |            False |                 False |
-|      10001 |     50020 | 7a5592774408f33ae303466db8871173f588914124ae5ea507131b1e3b3f94ad | 64ef9490130ad221e4b74fd6451230cf79cf4fd2fb00151eff5aec4770fe801c | tKP0iS6AZ7fJCAa3FfwtjFciGm0RaXhAzYbxTKk..ANN+D1oQLAcL8tuikNSmlb93d0wmxYMw72Rog== | bc51e8f72829d3a5a7d991dcf8b3a5429910958075963a610679a00db99c6ee6 |            False |                 False |
+|      10001 |     50016 | 2377ac4d8d2aa7a95d28af396396d7918331bf57520a0fafc5846690dc86b8d0 | 1cab7271ea4e98cf3290312e8adb0a113e297fc99f883833a8fbab62d5fe4105 | GzUx5Vj65EYle4TPHDqBHW7Gfvn5Bx7rIVL0Ltd..H9limDMDo2m8GuRd/QtTXrpKfU0flzQFrBWLA== | f49c80108b97e42b73e235012331b09fb9e44242ad60f561cfeec89bddbb7fa2 |            False |                 False |
+|      10001 |     50017 | 840490b115abb2a6c0c73e26a42bab6d15e3df2131f8cb0eaa168b4712599ecd | c200eb627d64364f8ef9814b92f32c645a1ef3956bcb8208ff127b2264790122 | ejBD2yt4IsyHrG2ty1mWP8n/RNI4KSSavq9PPpN..Bs3UxcI1GZzgAXaG7yChPypXDK5pmHwB0jr6Q== | b97c18a51b4ea644fc9faf840175e191759028b700ab2d4a0574b29118fad284 |            False |                 False |
+|      10001 |     50018 | d0a0eea47dfef8e36c68f878e766b8b7dcff80ed9645baf4642a75c3f95657e9 | 8b2e28731d5b9905ee72d6444d68a6d0d00c2e23f821a58ae93778cc9b9c190b | UU8gK5l0XeX2TRuegitsJWjfQV0VPWwtYcRLIXF..e+b0E+AR7rH2APR1jfXs7rG0aJLnuSdeeCkdg== | 39e26856dd912bd98a068933ebfbdaee1cad774e2ec8fa20838855c56e6dec2a |            False |                 False |
+|      10001 |     50019 | dbfbd0c7acb3fc0e6b104090ff65dfea89e8c85dab2436494f1f70d4252fb680 | 5ee5dadac4551bae74d5118c9896b5b363c4cc306290b932589215d22229c35f | sHqp1ffLZhWvHuuHcUeD4aiDNk+jm//R448da/E..cTxt4cDyGQlktzmGsqVsnl7mGCLO8+bBHNPCA== | 1430dbfbd7425bcc7e65685b0e3866a364905368c332973aab48916daecf11f5 |            False |                 False |
+|      10001 |     50020 | 323f168d61037d71b0fabeac656c71c28ea40cffedb20dc7b1649ab612263ef3 | 4e2f321d39ad25b5ba28731d33dd308ca31a20f10f7a494ff85eb8241d4ee726 | oxivJ/+H4xM/yFWGsolnPuxwGksTgxDcFLyv62k..Xz7q6mZ0j3oG1CcCyKrdE3pMM6wbZ2/Kao80Q== | 6d0f88a2c5886281e40f2a33a14ec2f146f3a785b90f6cdf3c92bee68127c869 |            False |                 False |
 
-\[20 rows x 8 cols; keyfield=; 0 keys ] (Pydf)
+\[20 rows x 8 cols; keyfield=; 0 keys ] (Daf)
 
 
